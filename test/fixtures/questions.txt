@@ -1,0 +1,6 @@
+# One question per line
+# Lines starting with # are comments
+
+how much is the fee of M.Sc. Industry 4.0
+What bachelor programs are offered?
+Tell me the admission requirements for international students.
