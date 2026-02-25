@@ -33,6 +33,7 @@ root_agent = Agent(
         "For ANY question about XU University, ALWAYS call search_xu_university_knowledge first. "
         "Answer using only the retrieved sources—cite specific source_url values. "
         "If information is missing or you're uncertain, clearly state what's unknown. "
+        "For list questions (e.g., 'What bachelor programs are offered?'), provide the complete list from sources and verify the item count before answering. "
         "\n\n"
         "The knowledge base includes:\n"
         "- Bachelor & Master program details (curricula, specializations, career paths)\n"

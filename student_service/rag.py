@@ -372,16 +372,27 @@ class WebsiteRAG:
 
         question_lower = question.lower()
         fee_intent = any(keyword in question_lower for keyword in ("fee", "fees", "tuition", "cost", "costs", "price", "pricing"))
+        bachelor_list_intent = (
+            "bachelor" in question_lower
+            and any(term in question_lower for term in ("program", "offered", "available", "which", "what"))
+        )
         query_tokens = [token for token in re.findall(r"[a-z0-9]+", question_lower) if len(token) >= 3]
 
         best_text = fallback
         best_score = -1.0
-        for text in source_chunks:
+        best_index = -1
+        for index, text in enumerate(source_chunks):
             lowered = text.lower()
             score = 0.0
 
             if query_tokens:
                 score += sum(1.0 for token in query_tokens if token in lowered) / len(query_tokens)
+
+            if bachelor_list_intent:
+                if any(term in lowered for term in ("bachelor", "program", "on campus", "years |", "skills for tomorrow")):
+                    score += 0.8
+                # Promote chunks likely containing the full program list section.
+                score += min(lowered.count(" on campus"), 5) * 0.25
 
             if fee_intent:
                 if any(term in lowered for term in ("fee", "fees", "tuition", "cost", "costs", "per month", "per year")):
@@ -394,8 +405,47 @@ class WebsiteRAG:
             if score > best_score:
                 best_score = score
                 best_text = text
+                best_index = index
+
+        if bachelor_list_intent and "/bachelor/" in source_url and best_index >= 0:
+            start = max(0, best_index - 1)
+            end = min(len(source_chunks), best_index + 2)
+            merged = " ".join(source_chunks[start:end]).strip()
+            if merged:
+                return self._clean_bachelor_program_excerpt(merged)
 
         return best_text
+
+    def _clean_bachelor_program_excerpt(self, text: str) -> str:
+        """Trim navigation/menu noise and keep bachelor program list section only."""
+        compact = " ".join(text.split())
+        lowered = compact.lower()
+
+        start_markers = [
+            "bachelor programs through learning by doing",
+            "home | bachelor bachelor programs",
+        ]
+        start = -1
+        for marker in start_markers:
+            idx = lowered.find(marker)
+            if idx != -1:
+                start = idx
+                break
+
+        if start != -1:
+            compact = compact[start:]
+            lowered = compact.lower()
+
+        end_markers = [
+            "start your journey today",
+            "partial scholarships",
+            "study with us",
+        ]
+        end_positions = [lowered.find(marker) for marker in end_markers if lowered.find(marker) != -1]
+        if end_positions:
+            compact = compact[: min(end_positions)]
+
+        return compact.strip()
 
     def _distance_to_score(self, distance: Any) -> float:
         try:
